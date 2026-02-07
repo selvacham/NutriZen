@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
+import { useGamificationStore } from './useGamificationStore';
 
 export interface WaterLog {
     id: string;
@@ -23,6 +24,7 @@ interface WaterState {
     goal: number;
     setGoal: (goal: number) => void;
     getTotalForDate: () => number;
+    getHydrationPercentage: () => number;
 }
 
 export const useWaterStore = create<WaterState>()(
@@ -89,6 +91,7 @@ export const useWaterStore = create<WaterState>()(
                         .single();
 
                     if (data) {
+                        useGamificationStore.getState().updateStreak();
                         set({
                             logs: [data, ...get().logs],
                             dateLogs: new Date(data.logged_at).toDateString() === get().selectedDate.toDateString()
@@ -122,6 +125,12 @@ export const useWaterStore = create<WaterState>()(
             getTotalForDate: () => {
                 const logs = get().dateLogs;
                 return logs.reduce((sum, log) => sum + log.amount_ml, 0);
+            },
+
+            getHydrationPercentage: () => {
+                const total = get().getTotalForDate();
+                const goal = get().goal;
+                return Math.min(100, Math.round((total / goal) * 100));
             },
         }),
         {

@@ -53,7 +53,6 @@ export default function RootLayout() {
                 console.log('Auth took too long, forcing loading off');
                 setLoading(false);
                 setAppReady(true);
-                SplashScreen.hideAsync().catch(() => { });
             }
         }, 5000); // 5 second fallback
 
@@ -101,7 +100,6 @@ export default function RootLayout() {
                 if (isMounted) {
                     setAppReady(true);
                     setLoading(false);
-                    SplashScreen.hideAsync().catch(() => { });
                     clearTimeout(loadingTimeout);
                 }
             }
@@ -144,6 +142,20 @@ export default function RootLayout() {
             subscription.unsubscribe();
         };
     }, []);
+
+    useEffect(() => {
+        if (appReady) {
+            const hideSplash = async () => {
+                try {
+                    await SplashScreen.hideAsync();
+                } catch (e) {
+                    console.log('Splash screen already hidden or not registered');
+                }
+            };
+            const timer = setTimeout(hideSplash, 500);
+            return () => clearTimeout(timer);
+        }
+    }, [appReady]);
 
     if (!appReady) {
         return null;

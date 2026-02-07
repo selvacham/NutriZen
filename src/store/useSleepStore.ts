@@ -37,8 +37,8 @@ export const useSleepStore = create<SleepState>()(
             selectedDate: new Date(),
             loading: false,
             sleepGoal: 8,
-            bedtime: new Date().setHours(22, 0, 0, 0).toString(),
-            waketime: new Date().setHours(7, 0, 0, 0).toString(),
+            bedtime: new Date(new Date().setHours(22, 0, 0, 0)).toISOString(),
+            waketime: new Date(new Date().setHours(7, 0, 0, 0)).toISOString(),
 
             setSleepGoal: (hours) => set({ sleepGoal: hours }),
             setSleepSchedule: (bedtime, waketime) => set({ bedtime, waketime }),

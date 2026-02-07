@@ -25,7 +25,7 @@ export default function ActivityScreen() {
         }
     }, [user, selectedDate]);
 
-    const handleLogActivity = async (activity: { activity_type: string; duration_minutes: number; calories_burned: number }) => {
+    const handleLogActivity = async (activity: { activity_type: string; duration_minutes: number; calories_burned: number; activity_group: string }) => {
         if (user?.id) {
             await addLog(activity, user.id);
         }
@@ -44,9 +44,18 @@ export default function ActivityScreen() {
                 showsVerticalScrollIndicator={false}
                 entering={FadeInDown.duration(500)}
             >
-                <View className="py-6">
-                    <Text className="text-3xl font-bold text-slate-900 dark:text-white">Activity</Text>
-                    <Text className="text-gray-500 dark:text-gray-400 mt-1">Track your workouts & movement</Text>
+                <View className="py-6 flex-row justify-between items-center">
+                    <View>
+                        <Text className="text-3xl font-bold text-slate-900 dark:text-white">Activity</Text>
+                        <Text className="text-gray-500 dark:text-gray-400 mt-1">Track your workouts & movement</Text>
+                    </View>
+                    <TouchableOpacity
+                        onPress={() => setShowActivityModal(true)}
+                        className="w-12 h-12 bg-teal-500 rounded-2xl items-center justify-center shadow-lg shadow-teal-500/20 active:scale-95"
+                        activeOpacity={0.9}
+                    >
+                        <Plus color="white" size={24} />
+                    </TouchableOpacity>
                 </View>
 
                 <DateFilter
@@ -117,12 +126,19 @@ export default function ActivityScreen() {
                                             <Text className="text-lg font-semibold text-slate-900 dark:text-white mb-1">
                                                 {log.activity_type}
                                             </Text>
-                                            <View className="flex-row items-center gap-4">
+                                            <View className="flex-row items-center gap-3">
                                                 <View className="flex-row items-center">
                                                     <Clock size={14} color="#94a3b8" />
                                                     <Text className="text-sm text-gray-500 ml-1">{log.duration_minutes} min</Text>
                                                 </View>
-                                                <Text className="text-sm text-gray-500">🔥 {log.calories_burned} cal</Text>
+                                                <View className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700" />
+                                                <Text className="text-sm text-gray-500 font-bold uppercase tracking-tighter">🔥 {log.calories_burned} cal</Text>
+                                                {log.activity_group && (
+                                                    <>
+                                                        <View className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700" />
+                                                        <Text className="text-sm text-teal-600 dark:text-teal-400 font-bold">{log.activity_group}</Text>
+                                                    </>
+                                                )}
                                             </View>
                                         </View>
                                         <TouchableOpacity onPress={() => handleDeleteActivity(log.id)} className="p-2">
@@ -144,14 +160,6 @@ export default function ActivityScreen() {
                 <View className="h-24" />
             </Animated.ScrollView>
 
-            {/* Add Activity FAB */}
-            <TouchableOpacity
-                onPress={() => setShowActivityModal(true)}
-                className="absolute bottom-40 right-5 w-16 h-16 bg-teal-500 rounded-full items-center justify-center shadow-lg shadow-teal-500/30"
-                activeOpacity={0.8}
-            >
-                <Plus color="white" size={32} />
-            </TouchableOpacity>
 
             <ActivityLogModal
                 visible={showActivityModal}

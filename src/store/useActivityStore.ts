@@ -7,6 +7,7 @@ export interface ActivityLog {
     activity_type: string;
     duration_minutes: number;
     calories_burned: number;
+    activity_group?: string;
     performed_at: string;
 }
 

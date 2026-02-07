@@ -8,6 +8,8 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/store/useAuthStore';
 import { useSettingsStore } from '../../src/store/useSettingsStore';
+import { useGamificationStore } from '../../src/store/useGamificationStore';
+import { BadgeCard } from '../../src/components/BadgeCard';
 
 export default function ProfileScreen() {
     const router = useRouter();
@@ -146,11 +148,29 @@ export default function ProfileScreen() {
                             <Award size={24} className="text-amber-600 dark:text-amber-400" />
                         </View>
                         <View className="flex-1">
-                            <Text className="text-lg font-bold text-slate-900 dark:text-white">Active Streak</Text>
-                            <Text className="text-slate-500 dark:text-slate-400 text-sm font-bold">You're doing great! 🔥</Text>
+                            <Text className="text-lg font-bold text-slate-900 dark:text-white">
+                                {useGamificationStore.getState().streak} Day Streak
+                            </Text>
+                            <Text className="text-slate-500 dark:text-slate-400 text-sm font-bold">
+                                {useGamificationStore.getState().streak > 0
+                                    ? "You're doing great! Keep it up! 🔥"
+                                    : "Start logging to build your streak!"}
+                            </Text>
                         </View>
                     </View>
                 </Animated.View>
+
+                <Section title="Achievements" delay={150}>
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={{ paddingLeft: 10, paddingRight: 10 }}
+                    >
+                        {useGamificationStore.getState().badges.map((badge) => (
+                            <BadgeCard key={badge.id} badge={badge} />
+                        ))}
+                    </ScrollView>
+                </Section>
 
                 <Section title="Appearance" delay={200}>
                     <View className="flex-row bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl">

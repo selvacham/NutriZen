@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
+import { useGamificationStore } from './useGamificationStore';
 
 export interface FoodLog {
     id: string;
@@ -10,6 +11,7 @@ export interface FoodLog {
     carbs_g: number;
     fats_g: number;
     meal_type: 'breakfast' | 'lunch' | 'dinner' | 'snack';
+    food_group?: string;
     logged_at: string;
 }
 
@@ -76,6 +78,7 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
                 .single();
 
             if (data) {
+                useGamificationStore.getState().updateStreak();
                 set({
                     logs: [data, ...get().logs],
                     // Only add to dateLogs if it matches the selectedDate

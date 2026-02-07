@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, Modal, TouchableOpacity, TextInput, FlatList } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, TextInput, FlatList, ScrollView } from 'react-native';
 import { X, Search } from 'lucide-react-native';
-import { useColorScheme } from 'nativewind';
 import { Food, searchFoods } from '../../utils/foodDatabase';
 
 interface FoodSearchModalProps {
@@ -11,17 +10,49 @@ interface FoodSearchModalProps {
 }
 
 export function FoodSearchModal({ visible, onClose, onSelectFood }: FoodSearchModalProps) {
-    const { colorScheme } = useColorScheme();
     const [searchQuery, setSearchQuery] = useState('');
     const [results, setResults] = useState<Food[]>(searchFoods(''));
+    const [selectedFood, setSelectedFood] = useState<Food | null>(null);
+    const [manualGroup, setManualGroup] = useState<string>('');
+    const [manualMealType, setManualMealType] = useState<string>('');
+    const [activeTab, setActiveTab] = useState('All');
+
+    const foodGroups = ['Proteins', 'Vegetables', 'Fruits', 'Grains', 'Dairy', 'Fats', 'Snacks', 'Beverages'];
+    const mealTabs = ['All', 'Breakfast', 'Lunch', 'Dinner', 'Snacks'];
+
+    const filterFoods = (query: string, tab: string) => {
+        let results = searchFoods(query);
+        if (tab !== 'All') {
+            const tabLower = tab.toLowerCase().replace('snacks', 'snack');
+            results = results.filter(f => f.category === tabLower);
+        }
+        setResults(results);
+    };
 
     const handleSearch = (query: string) => {
         setSearchQuery(query);
-        setResults(searchFoods(query));
+        filterFoods(query, activeTab);
+    };
+
+    const handleTabChange = (tab: string) => {
+        setActiveTab(tab);
+        filterFoods(searchQuery, tab);
     };
 
     const handleSelect = (food: Food) => {
-        onSelectFood(food);
+        setSelectedFood(food);
+        setManualGroup(food.foodGroup);
+        setManualMealType(food.category.charAt(0).toUpperCase() + food.category.slice(1).replace('snack', 'snacks'));
+    };
+
+    const handleLog = () => {
+        if (!selectedFood) return;
+        onSelectFood({
+            ...selectedFood,
+            foodGroup: manualGroup as any,
+            category: manualMealType.toLowerCase().replace('snacks', 'snack') as any
+        });
+        setSelectedFood(null);
         setSearchQuery('');
         onClose();
     };
@@ -33,7 +64,7 @@ export function FoodSearchModal({ visible, onClose, onSelectFood }: FoodSearchMo
             transparent={true}
             onRequestClose={onClose}
         >
-            <View className={`flex-1 bg-black/60 justify-end ${colorScheme === 'dark' ? 'dark' : ''}`}>
+            <View className="flex-1 bg-black/60 justify-end">
                 <View className="bg-white dark:bg-slate-900 rounded-t-[40px] h-[85%] shadow-2xl overflow-hidden border-t border-slate-100 dark:border-slate-800">
                     {/* Header Handle */}
                     <View className="items-center pt-3 pb-1">
@@ -47,60 +78,180 @@ export function FoodSearchModal({ visible, onClose, onSelectFood }: FoodSearchMo
                             onPress={onClose}
                             className="w-10 h-10 items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-full"
                         >
-                            <X size={20} className="text-slate-500 dark:text-slate-400" />
+                            <X size={20} color="#64748b" />
                         </TouchableOpacity>
                     </View>
 
-                    {/* Search Bar */}
-                    <View className="px-6 pb-4">
-                        <View className="flex-row items-center bg-slate-50 dark:bg-slate-800/50 rounded-2xl px-4 py-3.5 border border-slate-100 dark:border-slate-800">
-                            <Search size={20} className="text-slate-400 dark:text-slate-500" />
-                            <TextInput
-                                className="flex-1 ml-3 text-slate-900 dark:text-white font-bold text-base"
-                                placeholder="Search healthy foods..."
-                                placeholderTextColor="#94a3b8"
-                                value={searchQuery}
-                                onChangeText={handleSearch}
+                    {!selectedFood ? (
+                        <>
+                            {/* Category Tabs */}
+                            <View className="px-6 mb-4">
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row">
+                                    {mealTabs.map((tab) => (
+                                        <TouchableOpacity
+                                            key={tab}
+                                            onPress={() => handleTabChange(tab)}
+                                            className="px-8 py-3 rounded-2xl mr-3 border-2"
+                                            style={[
+                                                activeTab === tab
+                                                    ? { backgroundColor: '#14b8a6', borderColor: '#14b8a6' }
+                                                    : { backgroundColor: '#f8fafc', borderColor: '#f1f5f9' }
+                                            ]}
+                                        >
+                                            <Text className={`font-black text-sm ${activeTab === tab ? 'text-white' : 'text-slate-600'}`}>
+                                                {tab}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </ScrollView>
+                            </View>
+
+                            {/* Search Bar */}
+                            <View className="px-6 pb-6">
+                                <View className="flex-row items-center bg-slate-50 dark:bg-slate-800/50 rounded-2xl px-4 py-4 border border-slate-100 dark:border-slate-800">
+                                    <Search size={22} color="#94a3b8" />
+                                    <TextInput
+                                        className="flex-1 ml-3 text-slate-900 dark:text-white font-bold text-lg"
+                                        placeholder="Search healthy foods..."
+                                        placeholderTextColor="#94a3b8"
+                                        value={searchQuery}
+                                        onChangeText={handleSearch}
+                                    />
+                                </View>
+                            </View>
+
+                            {/* Food List */}
+                            <FlatList
+                                data={results}
+                                keyExtractor={(item) => item.id}
+                                contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
+                                showsVerticalScrollIndicator={false}
+                                renderItem={({ item }) => (
+                                    <TouchableOpacity
+                                        onPress={() => handleSelect(item)}
+                                        className="bg-slate-50 dark:bg-slate-800/40 rounded-3xl p-5 mb-4 border border-slate-100 dark:border-slate-800 active:scale-[0.98]"
+                                        activeOpacity={0.7}
+                                    >
+                                        <View className="flex-row justify-between items-start mb-3">
+                                            <View className="flex-1">
+                                                <Text className="text-lg font-bold text-slate-900 dark:text-white mb-0.5">
+                                                    {item.name}
+                                                </Text>
+                                                <View className="flex-row items-center gap-2">
+                                                    <Text className="text-xs text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">{item.servingSize}</Text>
+                                                    <View className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700" />
+                                                    <Text className="text-xs text-teal-600 dark:text-teal-400 font-bold">{item.foodGroup}</Text>
+                                                </View>
+                                            </View>
+                                            <View className="bg-teal-50 dark:bg-teal-900/30 px-3 py-1.5 rounded-xl border border-teal-100/50 dark:border-teal-800/50">
+                                                <Text className="text-teal-600 dark:text-teal-400 font-black text-sm">
+                                                    {item.calories} <Text className="text-[10px] font-bold">CAL</Text>
+                                                </Text>
+                                            </View>
+                                        </View>
+
+                                        <View className="flex-row justify-between mt-1 bg-white/50 dark:bg-slate-900/40 p-3 rounded-2xl">
+                                            <MacroItem label="Protein" value={`${item.protein}g`} color="text-teal-600 dark:text-teal-400" />
+                                            <View className="w-[1px] h-6 bg-slate-200 dark:bg-slate-800" />
+                                            <MacroItem label="Carbs" value={`${item.carbs}g`} color="text-amber-600 dark:text-amber-400" />
+                                            <View className="w-[1px] h-6 bg-slate-200 dark:bg-slate-800" />
+                                            <MacroItem label="Fats" value={`${item.fats}g`} color="text-rose-600 dark:text-rose-400" />
+                                        </View>
+                                    </TouchableOpacity>
+                                )}
                             />
-                        </View>
-                    </View>
-
-                    {/* Food List */}
-                    <FlatList
-                        data={results}
-                        keyExtractor={(item) => item.id}
-                        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
-                        showsVerticalScrollIndicator={false}
-                        renderItem={({ item }) => (
-                            <TouchableOpacity
-                                onPress={() => handleSelect(item)}
-                                className="bg-slate-50 dark:bg-slate-800/40 rounded-3xl p-5 mb-4 border border-slate-100 dark:border-slate-800 active:scale-[0.98]"
-                                activeOpacity={0.7}
-                            >
-                                <View className="flex-row justify-between items-start mb-3">
-                                    <View className="flex-1">
-                                        <Text className="text-lg font-bold text-slate-900 dark:text-white mb-0.5">
-                                            {item.name}
-                                        </Text>
-                                        <Text className="text-xs text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">{item.servingSize}</Text>
-                                    </View>
-                                    <View className="bg-teal-50 dark:bg-teal-900/30 px-3 py-1.5 rounded-xl border border-teal-100/50 dark:border-teal-800/50">
-                                        <Text className="text-teal-600 dark:text-teal-400 font-black text-sm">
-                                            {item.calories} <Text className="text-[10px] font-bold">CAL</Text>
-                                        </Text>
-                                    </View>
+                        </>
+                    ) : (
+                        <ScrollView className="flex-1 px-6 pt-2">
+                            <View className="items-center mb-8">
+                                <View className="w-20 h-20 bg-teal-50 dark:bg-teal-900/30 rounded-[30px] items-center justify-center mb-4">
+                                    <Text className="text-4xl text-teal-600 dark:text-teal-400">🥗</Text>
                                 </View>
+                                <Text className="text-3xl font-black text-slate-900 dark:text-white text-center mb-1">
+                                    {selectedFood.name}
+                                </Text>
+                                <Text className="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest text-xs">
+                                    {selectedFood.servingSize} • {selectedFood.calories} Calories
+                                </Text>
+                            </View>
 
-                                <View className="flex-row justify-between mt-1 bg-white/50 dark:bg-slate-900/40 p-3 rounded-2xl">
-                                    <MacroItem label="Protein" value={`${item.protein}g`} color="text-teal-600 dark:text-teal-400" />
-                                    <View className="w-[1px] h-6 bg-slate-200 dark:bg-slate-800" />
-                                    <MacroItem label="Carbs" value={`${item.carbs}g`} color="text-amber-600 dark:text-amber-400" />
-                                    <View className="w-[1px] h-6 bg-slate-200 dark:bg-slate-800" />
-                                    <MacroItem label="Fats" value={`${item.fats}g`} color="text-rose-600 dark:text-rose-400" />
+                            {/* Macro Breakdown */}
+                            <View className="flex-row justify-between bg-slate-50 dark:bg-slate-800/40 rounded-3xl p-6 mb-8 border border-slate-100 dark:border-slate-800">
+                                <View className="items-center flex-1">
+                                    <Text className="text-xs text-slate-400 font-black uppercase mb-1">Protein</Text>
+                                    <Text className="text-xl font-black text-teal-600 dark:text-teal-400">{selectedFood.protein}g</Text>
                                 </View>
-                            </TouchableOpacity>
-                        )}
-                    />
+                                <View className="w-[1px] h-8 bg-slate-200 dark:bg-slate-800 self-center" />
+                                <View className="items-center flex-1">
+                                    <Text className="text-xs text-slate-400 font-black uppercase mb-1">Carbs</Text>
+                                    <Text className="text-xl font-black text-amber-600 dark:text-amber-400">{selectedFood.carbs}g</Text>
+                                </View>
+                                <View className="w-[1px] h-8 bg-slate-200 dark:bg-slate-800 self-center" />
+                                <View className="items-center flex-1">
+                                    <Text className="text-xs text-slate-400 font-black uppercase mb-1">Fats</Text>
+                                    <Text className="text-xl font-black text-rose-600 dark:text-rose-400">{selectedFood.fats}g</Text>
+                                </View>
+                            </View>
+
+                            {/* Meal Type Selection */}
+                            <View className="mb-6">
+                                <Text className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 ml-1">Log as Meal Type</Text>
+                                <View className="flex-row flex-wrap gap-2">
+                                    {mealTabs.filter(t => t !== 'All').map((tab) => (
+                                        <TouchableOpacity
+                                            key={tab}
+                                            onPress={() => setManualMealType(tab)}
+                                            className={`px-5 py-3 rounded-2xl border ${manualMealType === tab
+                                                ? 'bg-teal-500 border-teal-500 shadow-lg shadow-teal-500/20'
+                                                : 'bg-slate-100 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800'
+                                                }`}
+                                        >
+                                            <Text className={`font-bold text-sm ${manualMealType === tab ? 'text-white' : 'text-slate-600 dark:text-slate-400'}`}>
+                                                {tab}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </View>
+
+                            {/* Group Selection */}
+                            <View className="mb-8">
+                                <Text className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 ml-1">Select Food Group</Text>
+                                <View className="flex-row flex-wrap gap-2">
+                                    {foodGroups.map((group) => (
+                                        <TouchableOpacity
+                                            key={group}
+                                            onPress={() => setManualGroup(group)}
+                                            className={`px-5 py-3 rounded-2xl border ${manualGroup === group
+                                                ? 'bg-teal-500 border-teal-500 shadow-lg shadow-teal-500/20'
+                                                : 'bg-slate-100 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800'
+                                                }`}
+                                        >
+                                            <Text className={`font-bold text-sm ${manualGroup === group ? 'text-white' : 'text-slate-600 dark:text-slate-400'}`}>
+                                                {group}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </View>
+
+                            {/* Action Buttons */}
+                            <View className="flex-row gap-4 mb-10">
+                                <TouchableOpacity
+                                    onPress={() => setSelectedFood(null)}
+                                    className="flex-1 bg-slate-100 dark:bg-slate-800 rounded-3xl py-5 active:scale-95"
+                                >
+                                    <Text className="text-center font-bold text-slate-600 dark:text-slate-300">Back</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={handleLog}
+                                    className="flex-[2] bg-teal-500 rounded-3xl py-5 shadow-lg shadow-teal-500/20 active:scale-95"
+                                >
+                                    <Text className="text-center font-black text-white text-lg">Log Food</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </ScrollView>
+                    )}
                 </View>
             </View>
         </Modal>

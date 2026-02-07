@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Plus, Trash2 } from 'lucide-react-native';
+import { Plus, Trash2, Camera } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInDown, FadeOutUp, Layout, ZoomIn } from 'react-native-reanimated';
 import { useAuthStore } from '../../src/store/useAuthStore';
@@ -10,6 +10,7 @@ import { useActivityStore } from '../../src/store/useActivityStore';
 import { useWaterStore } from '../../src/store/useWaterStore';
 import { useSleepStore } from '../../src/store/useSleepStore';
 import { FoodSearchModal } from '../../src/components/modals/FoodSearchModal';
+import { MealScannerModal } from '../../src/components/modals/MealScannerModal';
 import { DateFilter } from '../../src/components/DateFilter';
 import { Food } from '../../src/utils/foodDatabase';
 
@@ -17,6 +18,7 @@ export default function NutritionScreen() {
     const { user } = useAuthStore();
     const { dateLogs, selectedDate, setSelectedDate, fetchDateLogs, addLog, deleteLog, getTotalsForDate } = useNutritionStore();
     const [showFoodModal, setShowFoodModal] = useState(false);
+    const [showScannerModal, setShowScannerModal] = useState(false);
 
     useEffect(() => {
         if (user?.id) {
@@ -34,6 +36,7 @@ export default function NutritionScreen() {
                     carbs_g: food.carbs,
                     fats_g: food.fats,
                     meal_type: food.category,
+                    food_group: food.foodGroup,
                 }, user.id);
             } catch (error: any) {
                 console.error('Error adding food:', error);
@@ -69,9 +72,27 @@ export default function NutritionScreen() {
                     showsVerticalScrollIndicator={false}
                     entering={FadeInDown.duration(500)}
                 >
-                    <View className="py-6">
-                        <Text className="text-3xl font-bold text-slate-900 dark:text-white">Nutrition</Text>
-                        <Text className="text-slate-500 dark:text-slate-400 mt-1 font-medium">Track your meals & macros</Text>
+                    <View className="py-6 flex-row justify-between items-center">
+                        <View>
+                            <Text className="text-3xl font-bold text-slate-900 dark:text-white">Nutrition</Text>
+                            <Text className="text-slate-500 dark:text-slate-400 mt-1 font-medium">Track your meals & macros</Text>
+                        </View>
+                        <View className="flex-row gap-3">
+                            <TouchableOpacity
+                                onPress={() => setShowScannerModal(true)}
+                                className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-2xl items-center justify-center active:scale-95"
+                                activeOpacity={0.9}
+                            >
+                                <Camera color="#64748b" size={24} />
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                onPress={() => setShowFoodModal(true)}
+                                className="w-12 h-12 bg-teal-500 rounded-2xl items-center justify-center shadow-lg shadow-teal-500/20 active:scale-95"
+                                activeOpacity={0.9}
+                            >
+                                <Plus color="white" size={24} />
+                            </TouchableOpacity>
+                        </View>
                     </View>
 
                     <DateFilter
@@ -124,14 +145,10 @@ export default function NutritionScreen() {
                 </Animated.ScrollView>
             </SafeAreaView>
 
-            {/* Add Food FAB */}
-            <TouchableOpacity
-                onPress={() => setShowFoodModal(true)}
-                className="absolute bottom-40 right-5 w-16 h-16 bg-teal-500 rounded-full items-center justify-center shadow-xl shadow-teal-500/40 active:scale-95"
-                activeOpacity={0.9}
-            >
-                <Plus color="white" size={32} />
-            </TouchableOpacity>
+            <MealScannerModal
+                visible={showScannerModal}
+                onClose={() => setShowScannerModal(false)}
+            />
 
             <FoodSearchModal
                 visible={showFoodModal}
@@ -182,6 +199,15 @@ function MealSection({ title, meals, onDelete }: { title: string; meals: FoodLog
                             <Text className="text-lg font-bold text-slate-900 dark:text-white" numberOfLines={1}>
                                 {meal.food_name}
                             </Text>
+                            <View className="flex-row items-center gap-2">
+                                <Text className="text-slate-500 dark:text-slate-400 text-xs font-medium uppercase">{meal.meal_type}</Text>
+                                {meal.food_group && (
+                                    <>
+                                        <View className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700" />
+                                        <Text className="text-teal-600 dark:text-teal-400 text-xs font-bold">{meal.food_group}</Text>
+                                    </>
+                                )}
+                            </View>
                             <View className="flex-row gap-3 mt-1">
                                 <Text className="text-[10px] font-bold text-slate-400 uppercase">P: {Math.round(meal.protein_g)}g</Text>
                                 <Text className="text-[10px] font-bold text-slate-400 uppercase">C: {Math.round(meal.carbs_g)}g</Text>

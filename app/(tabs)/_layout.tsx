@@ -93,9 +93,11 @@ export default function TabLayout() {
                 setTimeout(() => router.push('/water'), 500);
                 break;
             case 'weight':
+                setShowQuickAction(false);
+                setTimeout(() => router.push('/weight'), 500);
+                break;
             case 'steps':
-                if (action === 'weight') router.push('/(tabs)/profile');
-                if (action === 'steps') router.push('/(tabs)/activity');
+                router.push('/(tabs)/activity');
                 break;
             case 'ai-coach':
                 setShowQuickAction(false);

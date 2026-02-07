@@ -14,16 +14,16 @@ const { width } = Dimensions.get('window');
 export default function WaterScreen() {
     const router = useRouter();
     const { user } = useAuthStore();
-    const { todayLogs, goal, fetchTodayLogs, addLog, deleteLog, getTodayTotal } = useWaterStore();
+    const { dateLogs, goal, fetchDateLogs, addLog, deleteLog, getTotalForDate } = useWaterStore();
     const [adding, setAdding] = useState(false);
 
     useEffect(() => {
         if (user?.id) {
-            fetchTodayLogs(user.id);
+            fetchDateLogs(user.id);
         }
     }, [user]);
 
-    const currentAmount = getTodayTotal();
+    const currentAmount = getTotalForDate();
     const progress = Math.min(currentAmount / goal, 1);
 
     // Animation values
@@ -46,10 +46,10 @@ export default function WaterScreen() {
     };
 
     const handleRemoveLastLog = async () => {
-        if (todayLogs.length > 0 && !adding) {
+        if (dateLogs.length > 0 && !adding) {
             setAdding(true);
             try {
-                await deleteLog(todayLogs[0].id);
+                await deleteLog(dateLogs[0].id);
             } catch (error) {
                 console.error(error);
             } finally {
@@ -137,9 +137,9 @@ export default function WaterScreen() {
                     <TouchableOpacity
                         onPress={handleRemoveLastLog}
                         className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 items-center justify-center"
-                        disabled={todayLogs.length === 0}
+                        disabled={dateLogs.length === 0}
                     >
-                        <Minus size={24} className={todayLogs.length === 0 ? "text-slate-300" : "text-slate-600 dark:text-slate-300"} />
+                        <Minus size={24} className={dateLogs.length === 0 ? "text-slate-300" : "text-slate-600 dark:text-slate-300"} />
                     </TouchableOpacity>
 
                     <View className="items-center">

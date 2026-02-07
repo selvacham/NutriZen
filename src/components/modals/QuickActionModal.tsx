@@ -16,7 +16,6 @@ const actions = [
     { id: 'water', label: 'Water', icon: Droplets, color: '#3b82f6' },
     { id: 'steps', label: 'Steps', icon: Footprints, color: '#8b5cf6' },
     { id: 'sleep', label: 'Sleep', icon: Moon, color: '#0f172a' },
-    { id: 'ai-coach', label: 'AI Coach', icon: Sparkles, color: '#14b8a6' },
 ];
 
 export const QuickActionModal = ({ visible, onClose, onAction }: QuickActionModalProps) => {
