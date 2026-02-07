@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Platform } from 'react-native';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { Calendar as CalendarIcon, ChevronDown, RotateCcw } from 'lucide-react-native';
+import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
+import { BlurView } from 'expo-blur';
+import { GlassyCalendarModal } from './modals/GlassyCalendarModal';
 
 interface DateFilterProps {
     selectedDate: Date;
@@ -10,12 +11,11 @@ interface DateFilterProps {
 }
 
 export const DateFilter = ({ selectedDate, onDateChange }: DateFilterProps) => {
+    const [showModal, setShowModal] = useState(false);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const isToday = (date: Date) => {
-        return date.toDateString() === today.toDateString();
-    };
+    const isToday = (date: Date) => date.toDateString() === today.toDateString();
 
     const isYesterday = (date: Date) => {
         const yesterday = new Date(today);
@@ -29,120 +29,100 @@ export const DateFilter = ({ selectedDate, onDateChange }: DateFilterProps) => {
         return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     };
 
-    const [showPicker, setShowPicker] = useState(false);
-
-    const changeDate = (days: number) => {
-        const newDate = new Date(selectedDate);
-        newDate.setDate(newDate.getDate() + days);
-        onDateChange(newDate);
-    };
-
-    const handleDateChange = (event: DateTimePickerEvent, date?: Date) => {
-        setShowPicker(Platform.OS === 'ios');
-        if (date) {
-            onDateChange(date);
-        }
-    };
-
     return (
         <Animated.View entering={FadeIn.duration(400)} style={styles.container}>
-            <View style={styles.pillContainer}>
+            <View style={styles.wrapper}>
                 <TouchableOpacity
-                    onPress={() => changeDate(-1)}
-                    style={styles.arrowButton}
+                    onPress={() => setShowModal(true)}
+                    activeOpacity={0.8}
+                    style={styles.trigger}
                 >
-                    <ChevronLeft size={20} color="#64748b" />
+                    <BlurView intensity={40} tint="light" style={styles.blurTrigger}>
+                        <View className="flex-row items-center px-6 py-3">
+                            <CalendarIcon size={18} color="#0d9488" className="mr-3" />
+                            <Text style={styles.dateText}>{formatDateLabel(selectedDate)}</Text>
+                            <ChevronDown size={18} color="#64748b" className="ml-2" />
+                        </View>
+                    </BlurView>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.dateDisplay}>
-                    <Text style={styles.dateLabel}>{formatDateLabel(selectedDate)}</Text>
-                    {!isToday(selectedDate) && (
-                        <TouchableOpacity
-                            onPress={() => onDateChange(new Date())}
-                            style={styles.todayBadge}
-                        >
-                            <Text style={styles.todayBadgeText}>Back to Today</Text>
-                        </TouchableOpacity>
-                    )}
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    onPress={() => changeDate(1)}
-                    style={styles.arrowButton}
-                >
-                    <ChevronRight size={20} color="#64748b" />
-                </TouchableOpacity>
+                {!isToday(selectedDate) && (
+                    <TouchableOpacity
+                        onPress={() => onDateChange(new Date())}
+                        activeOpacity={0.7}
+                        style={styles.todayButton}
+                    >
+                        <BlurView intensity={30} tint="light" style={styles.blurToday}>
+                            <View className="flex-row items-center px-4 py-3">
+                                <RotateCcw size={16} color="#0d9488" />
+                            </View>
+                        </BlurView>
+                    </TouchableOpacity>
+                )}
             </View>
 
-            <TouchableOpacity
-                style={styles.calendarButton}
-                onPress={() => setShowPicker(true)}
-            >
-                <CalendarIcon size={20} color="#0d9488" />
-            </TouchableOpacity>
-
-            {showPicker && (
-                <DateTimePicker
-                    value={selectedDate}
-                    mode="date"
-                    display="default"
-                    onChange={handleDateChange}
-                    maximumDate={new Date()}
-                />
-            )}
+            <GlassyCalendarModal
+                visible={showModal}
+                onClose={() => setShowModal(false)}
+                selectedDate={selectedDate}
+                onDateChange={(date) => {
+                    onDateChange(date);
+                    if (Platform.OS === 'ios') {
+                        // Keep open on iOS until confirmed or closed
+                    } else {
+                        setShowModal(false);
+                    }
+                }}
+            />
         </Animated.View>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
-        flexDirection: 'row',
-        alignItems: 'center',
         paddingHorizontal: 20,
-        paddingVertical: 15,
-        backgroundColor: 'transparent',
+        paddingVertical: 10,
+        zIndex: 100,
     },
-    pillContainer: {
-        flex: 1,
+    wrapper: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#f1f5f9',
-        borderRadius: 20,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        marginRight: 12,
+        gap: 12,
     },
-    arrowButton: {
-        padding: 4,
-    },
-    dateDisplay: {
+    trigger: {
         flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
+        borderRadius: 24,
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.4)',
+        elevation: 4,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
     },
-    dateLabel: {
-        fontSize: 15,
+    blurTrigger: {
+        width: '100%',
+    },
+    dateText: {
+        fontSize: 16,
         fontWeight: '800',
         color: '#1e293b',
+        flex: 1,
     },
-    calendarButton: {
-        width: 44,
-        height: 44,
-        backgroundColor: '#ccfbf1',
-        borderRadius: 15,
+    todayButton: {
+        borderRadius: 24,
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.4)',
+        elevation: 4,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+    },
+    blurToday: {
         alignItems: 'center',
         justifyContent: 'center',
     },
-    todayBadge: {
-        marginTop: 2,
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        backgroundColor: '#0d9488',
-        borderRadius: 10,
-    },
-    todayBadgeText: {
-        fontSize: 10,
-        color: 'white',
-        fontWeight: '900',
-    }
 });

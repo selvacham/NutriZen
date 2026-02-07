@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { Stack } from 'expo-router';
 import { useEffect, useState, useCallback } from 'react';
 import { useColorScheme } from 'nativewind';
@@ -5,13 +6,13 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { supabase } from '../src/lib/supabase';
 import { useAuthStore } from '../src/store/useAuthStore';
 import { useSettingsStore } from '../src/store/useSettingsStore';
 import { useNotificationEngine } from '../src/hooks/useNotificationEngine';
-import { StatusBar } from 'expo-status-bar';
 import '../src/global.css';
-import { View } from 'react-native';
 
 export {
     // Catch any errors thrown by the Layout component.
@@ -19,7 +20,7 @@ export {
 } from 'expo-router';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
-SplashScreen.preventAutoHideAsync();
+SplashScreen.preventAutoHideAsync().catch(() => { });
 
 export default function RootLayout() {
     const { colorScheme, setColorScheme } = useColorScheme();
@@ -49,7 +50,7 @@ export default function RootLayout() {
                 setLoading(false);
                 setAppReady(true);
             }
-        }, 5000);
+        }, 8000); // Increased timeout for slower environments
 
         const syncProfile = async (userId: string) => {
             try {
@@ -113,11 +114,12 @@ export default function RootLayout() {
     }, [appReady]);
 
     if (!appReady) {
-        return null;
+        // Use standard View to avoid layout issues during splash
+        return <View style={{ flex: 1, backgroundColor: isDark ? '#020617' : '#ffffff' }} />;
     }
 
     return (
-        <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayout} className="bg-white dark:bg-slate-950">
+        <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayout}>
             <SafeAreaProvider>
                 <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
                     <RootContent />

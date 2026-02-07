@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Search, Plus, Calendar, Settings, TrendingUp, Droplet, MessageCircle, Camera, LogOut, ShoppingBasket, Scale } from 'lucide-react-native';
+import { Search, Plus, Calendar, Settings, TrendingUp, Droplet, MessageCircle, Camera, LogOut, ShoppingBasket, Scale, Activity } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown, FadeInRight, useSharedValue, useAnimatedStyle, withSpring, withRepeat, withTiming, interpolate, Easing } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
@@ -22,8 +22,8 @@ import { Food } from '../../src/utils/foodDatabase';
 export default function DashboardScreen() {
     const { user, profile } = useAuthStore();
     const router = useRouter();
-    const { dateLogs: foodLogs, selectedDate, setSelectedDate, fetchDateLogs: fetchFoodLogs, getTotalsForDate, addLog } = useNutritionStore();
-    const { steps, dateLogs: activityLogs, fetchDateLogs: fetchActivityLogs, getCaloriesBurnedForDate } = useActivityStore();
+    const { logs: allFoodLogs, dateLogs: foodLogs, selectedDate, setSelectedDate, fetchLogs: fetchAllFoodLogs, fetchDateLogs: fetchFoodLogs, getTotalsForDate, addLog } = useNutritionStore();
+    const { steps, logs, dateLogs: activityLogs, fetchLogs: fetchAllActivityLogs, fetchDateLogs: fetchActivityLogs, getCaloriesBurnedForDate } = useActivityStore();
     const { dateLogs: waterLogs, fetchDateLogs: fetchWaterLogs, getTotalForDate: getWaterTotal, addLog: addWaterLog } = useWaterStore();
     const [showFoodModal, setShowFoodModal] = useState(false);
     const [showScannerModal, setShowScannerModal] = useState(false);
@@ -34,7 +34,9 @@ export default function DashboardScreen() {
     useEffect(() => {
         if (user?.id) {
             fetchFoodLogs(user.id, selectedDate);
+            fetchAllFoodLogs(user.id);
             fetchActivityLogs(user.id, selectedDate);
+            fetchAllActivityLogs(user.id);
             fetchWaterLogs(user.id, selectedDate);
             fetchWeightLogs(user.id);
         }
@@ -337,34 +339,65 @@ export default function DashboardScreen() {
                     </Animated.View>
 
                     {/* Recent History */}
-                    {foodLogs.length > 0 && (
-                        <Animated.View entering={FadeInDown.delay(400).duration(500)} className="mb-10">
-                            <View className="flex-row justify-between items-center mb-4 ml-1">
-                                <Text className="text-xl font-bold text-slate-900 dark:text-white">Recent Meals</Text>
-                                <TouchableOpacity onPress={() => router.push('/(tabs)/nutrition')}>
-                                    <Text className="text-teal-600 dark:text-teal-400 font-bold text-sm">View All</Text>
-                                </TouchableOpacity>
-                            </View>
-                            {foodLogs.slice(-3).reverse().map((log, index) => (
-                                <View
-                                    key={log.id || index}
-                                    className="bg-white dark:bg-slate-900 rounded-3xl p-4 mb-3 flex-row items-center border border-slate-100 dark:border-slate-800 shadow-sm"
-                                >
-                                    <View className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-2xl items-center justify-center mr-4">
-                                        <Text className="text-xl">🥗</Text>
-                                    </View>
-                                    <View className="flex-1">
-                                        <Text className="text-slate-900 dark:text-white font-bold text-base">{log.food_name}</Text>
-                                        <Text className="text-slate-500 dark:text-slate-400 text-xs font-medium uppercase">{log.meal_type}</Text>
-                                    </View>
-                                    <View className="items-end">
-                                        <Text className="text-slate-900 dark:text-white font-bold text-base">{log.calories}</Text>
-                                        <Text className="text-slate-400 dark:text-slate-500 text-[10px] font-bold uppercase">kcal</Text>
-                                    </View>
+                    <View className="mb-10">
+                        {allFoodLogs.length > 0 && (
+                            <Animated.View entering={FadeInDown.delay(400).duration(500)} className="mb-8">
+                                <View className="flex-row justify-between items-center mb-4 ml-1">
+                                    <Text className="text-xl font-bold text-slate-900 dark:text-white">Recent Meals</Text>
+                                    <TouchableOpacity onPress={() => router.push('/(tabs)/nutrition')}>
+                                        <Text className="text-teal-600 dark:text-teal-400 font-bold text-sm">View All</Text>
+                                    </TouchableOpacity>
                                 </View>
-                            ))}
-                        </Animated.View>
-                    )}
+                                {allFoodLogs.slice(0, 3).map((log, index) => (
+                                    <View
+                                        key={log.id || index}
+                                        className="bg-white dark:bg-slate-900 rounded-3xl p-4 mb-3 flex-row items-center border border-slate-100 dark:border-slate-800 shadow-sm"
+                                    >
+                                        <View className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-2xl items-center justify-center mr-4">
+                                            <Text className="text-xl">🥗</Text>
+                                        </View>
+                                        <View className="flex-1">
+                                            <Text className="text-slate-900 dark:text-white font-bold text-base">{log.food_name}</Text>
+                                            <Text className="text-slate-500 dark:text-slate-400 text-xs font-medium uppercase">{log.meal_type}</Text>
+                                        </View>
+                                        <View className="items-end">
+                                            <Text className="text-slate-900 dark:text-white font-bold text-base">{log.calories}</Text>
+                                            <Text className="text-slate-400 dark:text-slate-500 text-[10px] font-bold uppercase">kcal</Text>
+                                        </View>
+                                    </View>
+                                ))}
+                            </Animated.View>
+                        )}
+
+                        {logs.length > 0 && (
+                            <Animated.View entering={FadeInDown.delay(500).duration(500)}>
+                                <View className="flex-row justify-between items-center mb-4 ml-1">
+                                    <Text className="text-xl font-bold text-slate-900 dark:text-white">Recent Activity</Text>
+                                    <TouchableOpacity onPress={() => router.push('/(tabs)/activity')}>
+                                        <Text className="text-indigo-600 dark:text-indigo-400 font-bold text-sm">View All</Text>
+                                    </TouchableOpacity>
+                                </View>
+                                {logs.slice(0, 3).map((log, index) => (
+                                    <View
+                                        key={log.id || index}
+                                        className="bg-white dark:bg-slate-900 rounded-3xl p-4 mb-3 flex-row items-center border border-slate-100 dark:border-slate-800 shadow-sm"
+                                    >
+                                        <View className="w-12 h-12 bg-indigo-50 dark:bg-indigo-900/30 rounded-2xl items-center justify-center mr-4">
+                                            <Activity size={20} color="#4f46e5" />
+                                        </View>
+                                        <View className="flex-1">
+                                            <Text className="text-slate-900 dark:text-white font-bold text-base">{log.activity_type}</Text>
+                                            <Text className="text-slate-500 dark:text-slate-400 text-xs font-medium uppercase">{log.duration_minutes} mins</Text>
+                                        </View>
+                                        <View className="items-end">
+                                            <Text className="text-indigo-600 dark:text-indigo-400 font-bold text-base">{log.calories_burned}</Text>
+                                            <Text className="text-slate-400 dark:text-slate-500 text-[10px] font-bold uppercase">kcal</Text>
+                                        </View>
+                                    </View>
+                                ))}
+                            </Animated.View>
+                        )}
+                    </View>
 
                     <View className="h-24" />
                 </Animated.ScrollView>
