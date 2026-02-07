@@ -1,5 +1,15 @@
 import React, { useState } from 'react';
-import { View, Text, Modal, TouchableOpacity, TextInput, FlatList, ScrollView } from 'react-native';
+import {
+    View,
+    Text,
+    Modal,
+    TouchableOpacity,
+    TextInput,
+    FlatList,
+    ScrollView,
+    StyleSheet,
+    Pressable,
+} from 'react-native';
 import { X, Search } from 'lucide-react-native';
 import { Food, searchFoods } from '../../utils/foodDatabase';
 
@@ -7,15 +17,31 @@ interface FoodSearchModalProps {
     visible: boolean;
     onClose: () => void;
     onSelectFood: (food: Food) => void;
+    initialMealType?: string;
 }
 
-export function FoodSearchModal({ visible, onClose, onSelectFood }: FoodSearchModalProps) {
+export function FoodSearchModal({ visible, onClose, onSelectFood, initialMealType }: FoodSearchModalProps) {
     const [searchQuery, setSearchQuery] = useState('');
     const [results, setResults] = useState<Food[]>(searchFoods(''));
     const [selectedFood, setSelectedFood] = useState<Food | null>(null);
     const [manualGroup, setManualGroup] = useState<string>('');
     const [manualMealType, setManualMealType] = useState<string>('');
     const [activeTab, setActiveTab] = useState('All');
+
+    React.useEffect(() => {
+        if (visible) {
+            if (initialMealType) {
+                const formattedMealType = initialMealType.charAt(0).toUpperCase() + initialMealType.slice(1);
+                setManualMealType(formattedMealType);
+                setActiveTab(formattedMealType);
+                filterFoods('', formattedMealType);
+            } else {
+                setManualMealType('Breakfast');
+                setActiveTab('All');
+                filterFoods('', 'All');
+            }
+        }
+    }, [visible, initialMealType]);
 
     const foodGroups = ['Proteins', 'Vegetables', 'Fruits', 'Grains', 'Dairy', 'Fats', 'Snacks', 'Beverages'];
     const mealTabs = ['All', 'Breakfast', 'Lunch', 'Dinner', 'Snacks'];
@@ -42,18 +68,29 @@ export function FoodSearchModal({ visible, onClose, onSelectFood }: FoodSearchMo
     const handleSelect = (food: Food) => {
         setSelectedFood(food);
         setManualGroup(food.foodGroup);
-        setManualMealType(food.category.charAt(0).toUpperCase() + food.category.slice(1).replace('snack', 'snacks'));
+        if (!manualMealType) {
+            setManualMealType(
+                food.category.charAt(0).toUpperCase() +
+                food.category.slice(1).replace('snack', 'snacks')
+            );
+        }
     };
 
     const handleLog = () => {
         if (!selectedFood) return;
+
+        const category = manualMealType.toLowerCase().startsWith('snack')
+            ? 'snack'
+            : manualMealType.toLowerCase();
+
         onSelectFood({
             ...selectedFood,
             foodGroup: manualGroup as any,
-            category: manualMealType.toLowerCase().replace('snacks', 'snack') as any
+            category: category as any
         });
         setSelectedFood(null);
         setSearchQuery('');
+        setManualMealType('');
         onClose();
     };
 
@@ -86,7 +123,11 @@ export function FoodSearchModal({ visible, onClose, onSelectFood }: FoodSearchMo
                         <>
                             {/* Category Tabs */}
                             <View className="px-6 mb-4">
-                                <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row">
+                                <ScrollView
+                                    horizontal
+                                    showsHorizontalScrollIndicator={false}
+                                    className="flex-row"
+                                >
                                     {mealTabs.map((tab) => (
                                         <TouchableOpacity
                                             key={tab}
@@ -193,20 +234,24 @@ export function FoodSearchModal({ visible, onClose, onSelectFood }: FoodSearchMo
                                 </View>
                             </View>
 
-                            {/* Meal Type Selection */}
+                            {/* Meal Type Selection - FIXED */}
                             <View className="mb-6">
                                 <Text className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 ml-1">Log as Meal Type</Text>
-                                <View className="flex-row flex-wrap gap-2">
+                                <View style={styles.tabContainer}>
                                     {mealTabs.filter(t => t !== 'All').map((tab) => (
                                         <TouchableOpacity
                                             key={tab}
                                             onPress={() => setManualMealType(tab)}
-                                            className={`px-5 py-3 rounded-2xl border ${manualMealType === tab
-                                                ? 'bg-teal-500 border-teal-500 shadow-lg shadow-teal-500/20'
-                                                : 'bg-slate-100 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800'
-                                                }`}
+                                            activeOpacity={0.7}
+                                            style={[
+                                                styles.tabButton,
+                                                manualMealType === tab ? styles.tabButtonActive : styles.tabButtonInactive
+                                            ]}
                                         >
-                                            <Text className={`font-bold text-sm ${manualMealType === tab ? 'text-white' : 'text-slate-600 dark:text-slate-400'}`}>
+                                            <Text style={[
+                                                styles.tabText,
+                                                manualMealType === tab ? styles.tabTextActive : styles.tabTextInactive
+                                            ]}>
                                                 {tab}
                                             </Text>
                                         </TouchableOpacity>
@@ -214,20 +259,24 @@ export function FoodSearchModal({ visible, onClose, onSelectFood }: FoodSearchMo
                                 </View>
                             </View>
 
-                            {/* Group Selection */}
+                            {/* Group Selection - FIXED */}
                             <View className="mb-8">
                                 <Text className="text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 ml-1">Select Food Group</Text>
-                                <View className="flex-row flex-wrap gap-2">
+                                <View style={styles.tabContainer}>
                                     {foodGroups.map((group) => (
                                         <TouchableOpacity
                                             key={group}
                                             onPress={() => setManualGroup(group)}
-                                            className={`px-5 py-3 rounded-2xl border ${manualGroup === group
-                                                ? 'bg-teal-500 border-teal-500 shadow-lg shadow-teal-500/20'
-                                                : 'bg-slate-100 dark:bg-slate-800/50 border-slate-200 dark:border-slate-800'
-                                                }`}
+                                            activeOpacity={0.7}
+                                            style={[
+                                                styles.tabButton,
+                                                manualGroup === group ? styles.tabButtonActive : styles.tabButtonInactive
+                                            ]}
                                         >
-                                            <Text className={`font-bold text-sm ${manualGroup === group ? 'text-white' : 'text-slate-600 dark:text-slate-400'}`}>
+                                            <Text style={[
+                                                styles.tabText,
+                                                manualGroup === group ? styles.tabTextActive : styles.tabTextInactive
+                                            ]}>
                                                 {group}
                                             </Text>
                                         </TouchableOpacity>
@@ -266,3 +315,45 @@ function MacroItem({ label, value, color }: { label: string; value: string; colo
         </View>
     );
 }
+
+// FIXED StyleSheet - Replaces problematic NativeWind shadow classes
+const styles = StyleSheet.create({
+    tabContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    tabButton: {
+        paddingHorizontal: 20,
+        paddingVertical: 12,
+        borderRadius: 16,
+        borderWidth: 2,
+        minWidth: 80,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    tabButtonActive: {
+        backgroundColor: '#14b8a6',
+        borderColor: '#14b8a6',
+        shadowColor: '#14b8a6',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 8,
+    },
+    tabButtonInactive: {
+        backgroundColor: '#f8fafc',
+        borderColor: '#e2e8f0',
+    },
+    tabText: {
+        fontSize: 14,
+        fontWeight: '700',
+    },
+    tabTextActive: {
+        color: 'white',
+        fontWeight: '900',
+    },
+    tabTextInactive: {
+        color: '#64748b',
+    },
+});

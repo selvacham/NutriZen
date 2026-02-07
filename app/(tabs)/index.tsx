@@ -296,7 +296,7 @@ export default function DashboardScreen() {
                                 </View>
                                 <View className="items-end">
                                     <Text className="text-lg font-black text-slate-900 dark:text-white">
-                                        {weightLogs.length > 0 ? convertWeight(weightLogs[0].weight) : (profile?.current_weight_kg || '--')} {weightUnit}
+                                        {weightLogs.length > 0 ? convertWeight(weightLogs[0].weight_kg) : (profile?.current_weight_kg || '--')} {weightUnit}
                                     </Text>
                                     <Text className="text-[10px] text-teal-600 font-bold">Updated {weightLogs.length > 0 ? 'Recently' : 'from Profile'}</Text>
                                 </View>
@@ -369,21 +369,27 @@ export default function DashboardScreen() {
                     <View className="h-24" />
                 </Animated.ScrollView>
             </SafeAreaView>
-            <MealScannerModal
-                visible={showScannerModal}
-                onClose={() => setShowScannerModal(false)}
-            />
+            {showScannerModal && (
+                <MealScannerModal
+                    visible={showScannerModal}
+                    onClose={() => setShowScannerModal(false)}
+                />
+            )}
 
-            <FoodSearchModal
-                visible={showFoodModal}
-                onClose={() => setShowFoodModal(false)}
-                onSelectFood={handleAddFood}
-            />
+            {showFoodModal && (
+                <FoodSearchModal
+                    visible={showFoodModal}
+                    onClose={() => setShowFoodModal(false)}
+                    onSelectFood={handleAddFood}
+                />
+            )}
 
-            <GroceryListModal
-                visible={showGroceryList}
-                onClose={() => setShowGroceryList(false)}
-            />
+            {showGroceryList && (
+                <GroceryListModal
+                    visible={showGroceryList}
+                    onClose={() => setShowGroceryList(false)}
+                />
+            )}
         </View>
     );
 }

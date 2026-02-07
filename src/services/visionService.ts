@@ -94,3 +94,39 @@ export async function generateGrocerySuggestions(recentLogs: any[]) {
         return [];
     }
 }
+
+export async function generateMealSuggestion(remainingMacros: { calories: number; protein: number; carbs: number; fats: number }, goal: string) {
+    if (!API_KEY) {
+        console.warn('Gemini API Key is missing. Skipping meal suggestion.');
+        return null;
+    }
+
+    try {
+        const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
+        const prompt = `Based on the following remaining daily macros: ${JSON.stringify(remainingMacros)} and the user's goal: "${goal}",
+        suggest ONE delicious and healthy meal recipe. 
+        Return ONLY a JSON object with the following fields:
+        {
+            "meal_name": "string",
+            "description": "Short appetizing description",
+            "macros": { "calories": number, "protein": number, "carbs": number, "fats": number },
+            "ingredients": ["string", "string", ...],
+            "instructions": ["string", "string", ...],
+            "prep_time": "string (e.g. 15 mins)"
+        }
+        The recipe MUST be realistic and its total macros should ideally fit within or near the remaining budget.`;
+
+        const result = await model.generateContent(prompt);
+        const response = result.response;
+        const text = response.text();
+
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            return JSON.parse(jsonMatch[0]);
+        }
+        return null;
+    } catch (error) {
+        console.error('Error generating meal suggestion:', error);
+        return null;
+    }
+}

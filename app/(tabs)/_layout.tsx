@@ -196,54 +196,64 @@ export default function TabLayout() {
 
             </Tabs>
 
-            <QuickActionModal
-                visible={showQuickAction}
-                onClose={() => setShowQuickAction(false)}
-                onAction={handleQuickAction}
-            />
+            {showQuickAction && (
+                <QuickActionModal
+                    visible={showQuickAction}
+                    onClose={() => setShowQuickAction(false)}
+                    onAction={handleQuickAction}
+                />
+            )}
 
-            <SleepLogModal
-                visible={showSleepModal}
-                onClose={() => setShowSleepModal(false)}
-                userId={user.id}
-            />
+            {showSleepModal && (
+                <SleepLogModal
+                    visible={showSleepModal}
+                    onClose={() => setShowSleepModal(false)}
+                    userId={user.id}
+                />
+            )}
 
-            <FoodSearchModal
-                visible={showFoodModal}
-                onClose={() => setShowFoodModal(false)}
-                onSelectFood={async (food) => {
-                    if (user?.id) {
-                        try {
-                            await addFoodLog({
-                                food_name: food.name,
-                                calories: food.calories,
-                                protein_g: food.protein,
-                                carbs_g: food.carbs,
-                                fats_g: food.fats,
-                                meal_type: food.category,
-                            }, user.id);
-                        } catch (error) {
-                            console.error('Error adding food:', error);
+            {showFoodModal && (
+                <FoodSearchModal
+                    visible={showFoodModal}
+                    onClose={() => setShowFoodModal(false)}
+                    onSelectFood={async (food) => {
+                        if (user?.id) {
+                            try {
+                                await addFoodLog({
+                                    food_name: food.name,
+                                    calories: food.calories,
+                                    protein_g: food.protein,
+                                    carbs_g: food.carbs,
+                                    fats_g: food.fats,
+                                    meal_type: food.category,
+                                }, user.id);
+                            } catch (error) {
+                                console.error('Error adding food:', error);
+                            }
                         }
-                    }
-                }}
-            />
+                    }}
+                />
+            )}
 
-            <ActivityLogModal
-                visible={showActivityModal}
-                onClose={() => setShowActivityModal(false)}
-                onLogActivity={async (activity) => {
-                    if (user?.id) {
-                        await addActivityLog(activity, user.id);
-                    }
-                }}
-                userWeight={profile?.current_weight_kg}
-            />
+            {showActivityModal && (
+                <ActivityLogModal
+                    visible={showActivityModal}
+                    onClose={() => setShowActivityModal(false)}
+                    onLogActivity={async (activity) => {
+                        if (user?.id) {
+                            await addActivityLog(activity, user.id);
+                        }
+                    }}
+                    userWeight={profile?.current_weight_kg}
+                />
+            )}
 
-            <AICoachModal
-                visible={showAICoach}
-                onClose={() => setShowAICoach(false)}
-            />
+            {showAICoach && (
+                <AICoachModal
+                    visible={showAICoach}
+                    onClose={() => setShowAICoach(false)}
+                />
+            )}
 
             {/* Global AI Coach Chat Button - Bottom Right (above tabs) */}
             <Animated.View
