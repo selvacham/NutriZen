@@ -1,19 +1,25 @@
 import { Redirect, Stack, useSegments } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
+import { useEffect, useState } from 'react';
 import { useAuthStore } from '../../src/store/useAuthStore';
 
 export default function AuthLayout() {
-    const { user, profile, loading } = useAuthStore();
+    const { user, hasProfile, loading } = useAuthStore();
     const segments = useSegments();
+    const [isReady, setIsReady] = useState(false);  // 👈 NEW: Wait for auth
 
-    console.log('[AuthLayout] State:', {
-        loading,
-        userEmail: user?.email,
-        hasProfile: !!profile,
-        segments
-    });
+    useEffect(() => {
+        const init = async () => {
+            await useAuthStore.getState().initializeAuth();
+            setIsReady(true);  // 👈 ONLY render logic AFTER init
+        };
+        init();
+    }, []);
 
-    if (loading) {
+    //console.log('[AuthLayout] State:', { loading, isReady, userEmail: user?.email, hasProfile, segments });
+
+    // 👈 ALWAYS WAIT for both loading + init
+    if (loading || !isReady) {
         return (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                 <ActivityIndicator size="large" color="#0d9488" />
@@ -21,20 +27,18 @@ export default function AuthLayout() {
         );
     }
 
-    // If user is authenticated and has a profile, redirect to tabs
-    if (user && profile) {
+    if (user && hasProfile) {
+        //console.log('[AuthLayout] ✅ → TABS');
         return <Redirect href="/(tabs)" />;
     }
 
-    // If user is authenticated but no profile, redirect to onboarding
-    // Check if identifying as 'onboarding' is in segments to avoid loop
     const inOnboarding = (segments as string[]).includes('onboarding');
-
-    if (user && !profile && !inOnboarding) {
+    if (user && !hasProfile && !inOnboarding) {
+        //console.log('[AuthLayout] → Onboarding');
         return <Redirect href="/(auth)/onboarding" />;
     }
 
-    // Otherwise, show auth screens
+    //console.log('[AuthLayout] → Auth screens');
     return (
         <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="index" />

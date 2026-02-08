@@ -34,9 +34,7 @@ export default function DashboardScreen() {
     useEffect(() => {
         if (user?.id) {
             fetchFoodLogs(user.id, selectedDate);
-            fetchAllFoodLogs(user.id);
             fetchActivityLogs(user.id, selectedDate);
-            fetchAllActivityLogs(user.id);
             fetchWaterLogs(user.id, selectedDate);
             fetchWeightLogs(user.id);
         }
@@ -340,7 +338,7 @@ export default function DashboardScreen() {
 
                     {/* Recent History */}
                     <View className="mb-10">
-                        {allFoodLogs.length > 0 && (
+                        {foodLogs.length > 0 && (
                             <Animated.View entering={FadeInDown.delay(400).duration(500)} className="mb-8">
                                 <View className="flex-row justify-between items-center mb-4 ml-1">
                                     <Text className="text-xl font-bold text-slate-900 dark:text-white">Recent Meals</Text>
@@ -348,7 +346,7 @@ export default function DashboardScreen() {
                                         <Text className="text-teal-600 dark:text-teal-400 font-bold text-sm">View All</Text>
                                     </TouchableOpacity>
                                 </View>
-                                {allFoodLogs.slice(0, 3).map((log, index) => (
+                                {foodLogs.slice(0, 3).map((log, index) => (
                                     <View
                                         key={log.id || index}
                                         className="bg-white dark:bg-slate-900 rounded-3xl p-4 mb-3 flex-row items-center border border-slate-100 dark:border-slate-800 shadow-sm"
@@ -369,7 +367,7 @@ export default function DashboardScreen() {
                             </Animated.View>
                         )}
 
-                        {logs.length > 0 && (
+                        {activityLogs.length > 0 && (
                             <Animated.View entering={FadeInDown.delay(500).duration(500)}>
                                 <View className="flex-row justify-between items-center mb-4 ml-1">
                                     <Text className="text-xl font-bold text-slate-900 dark:text-white">Recent Activity</Text>
@@ -377,7 +375,7 @@ export default function DashboardScreen() {
                                         <Text className="text-indigo-600 dark:text-indigo-400 font-bold text-sm">View All</Text>
                                     </TouchableOpacity>
                                 </View>
-                                {logs.slice(0, 3).map((log, index) => (
+                                {activityLogs.slice(0, 3).map((log, index) => (
                                     <View
                                         key={log.id || index}
                                         className="bg-white dark:bg-slate-900 rounded-3xl p-4 mb-3 flex-row items-center border border-slate-100 dark:border-slate-800 shadow-sm"

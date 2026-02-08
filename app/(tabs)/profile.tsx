@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Switch, Modal, TextInput, Alert, TouchableOpacity, useColorScheme, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, Switch, Modal, TextInput, Alert, TouchableOpacity, useColorScheme, StyleSheet, useWindowDimensions } from 'react-native'; // Added useWindowDimensions
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronRight, Bell, Shield, LogOut, Award, Moon, Sun, Monitor, X, Edit2, User, Mail, Smartphone, TrendingUp, Trash2 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeInDown, useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated'; // Added animation hooks
 import { supabase } from '../../src/lib/supabase';
 import { useAuthStore } from '../../src/store/useAuthStore';
 import { useSettingsStore } from '../../src/store/useSettingsStore';
@@ -173,11 +173,7 @@ export default function ProfileScreen() {
                 </Section>
 
                 <Section title="Appearance" delay={200}>
-                    <View className="flex-row bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl">
-                        <ThemeOption label="Light" icon={<Sun />} value="light" active={theme === 'light'} onSelect={() => setTheme('light')} />
-                        <ThemeOption label="Dark" icon={<Moon />} value="dark" active={theme === 'dark'} onSelect={() => setTheme('dark')} />
-                        <ThemeOption label="System" icon={<Monitor />} value="system" active={theme === 'system'} onSelect={() => setTheme('system')} />
-                    </View>
+                    <ThemeSelector theme={theme} setTheme={setTheme} />
                 </Section>
 
                 <Section title="Account" delay={300}>
@@ -458,57 +454,113 @@ function SettingsItem({ icon: Icon, label, onPress, isSwitch, value, onToggle, i
     );
 }
 
-function ThemeOption({ label, icon, active, onSelect }: any) {
-    const colorScheme = useColorScheme();
+// -----------------------------------------------------------------------------
+// Animated Theme Selector
+// -----------------------------------------------------------------------------
+const THEMES = ['light', 'dark', 'system'] as const;
+
+function ThemeSelector({ theme, setTheme }: any) {
+    const { width } = useWindowDimensions();
+    const padding = 6;
+    // Calculate width based on screen padding (20px horizontal padding on screen)
+    // Adjust this if the container padding changes
+    const containerWidth = width - 40 - (padding * 2);
+    const tabWidth = containerWidth / 3;
+
+    const translateX = useSharedValue(0);
+
+    useEffect(() => {
+        const index = THEMES.indexOf(theme);
+        if (index !== -1) {
+            translateX.value = withSpring(index * tabWidth, {
+                damping: 30,
+                stiffness: 300,
+                mass: 1, // Standard mass
+            });
+        }
+    }, [theme, tabWidth]); // Add tabWidth dependency
+
+    const indicatorStyle = useAnimatedStyle(() => ({
+        transform: [{ translateX: translateX.value }],
+        width: tabWidth, // Ensure width is reactive
+    }));
+
+    return (
+        <View
+            style={{ padding, borderRadius: 18 }}
+            className="bg-slate-100 dark:bg-slate-800"
+        >
+            {/* Animated Indicator */}
+            <Animated.View
+                style={[
+                    {
+                        position: 'absolute',
+                        top: padding,
+                        left: padding,
+                        height: 44,
+                        borderRadius: 14,
+                        backgroundColor: '#0f766e', // Teal-700
+                    },
+                    indicatorStyle,
+                ]}
+            />
+
+            <View className="flex-row">
+                <ThemeTab
+                    label="Light"
+                    icon={<Sun />}
+                    value="light"
+                    active={theme === 'light'}
+                    onPress={setTheme}
+                />
+                <ThemeTab
+                    label="Dark"
+                    icon={<Moon />}
+                    value="dark"
+                    active={theme === 'dark'}
+                    onPress={setTheme}
+                />
+                <ThemeTab
+                    label="System"
+                    icon={<Monitor />}
+                    value="system"
+                    active={theme === 'system'}
+                    onPress={setTheme}
+                />
+            </View>
+        </View>
+    );
+}
+
+function ThemeTab({ label, icon, value, active, onPress }: any) {
     return (
         <TouchableOpacity
-            onPress={onSelect}
-            style={[
-                styles.themeButton,
-                active && styles.themeButtonActive,
-            ]}
-            activeOpacity={0.7}
+            onPress={() => onPress(value)}
+            activeOpacity={0.8}
+            style={{
+                flex: 1,
+                height: 44,
+                borderRadius: 14,
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexDirection: 'row',
+                zIndex: 1, // Ensure text sits above indicator
+            }}
         >
             {React.cloneElement(icon, {
                 size: 16,
-                color: active ? (colorScheme === 'dark' ? '#fff' : '#0f766e') : '#94a3b8'
+                color: active ? '#ffffff' : '#94a3b8',
             })}
-            <Text style={[
-                styles.themeLabel,
-                active && styles.themeLabelActive
-            ]}>
+            <Text
+                style={{
+                    marginLeft: 8,
+                    fontSize: 12,
+                    fontWeight: '700',
+                    color: active ? '#ffffff' : '#94a3b8',
+                }}
+            >
                 {label}
             </Text>
         </TouchableOpacity>
     );
 }
-
-const styles = StyleSheet.create({
-    themeButton: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 12,
-        paddingHorizontal: 8,
-        borderRadius: 12,
-        marginHorizontal: 2,
-    },
-    themeButtonActive: {
-        backgroundColor: 'white', // Will inherit dark:bg-slate-700 via NativeWind parent
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-        elevation: 2,
-    },
-    themeLabel: {
-        marginLeft: 8,
-        fontSize: 12,
-        fontWeight: '700',
-        color: '#94a3b8',
-    },
-    themeLabelActive: {
-        color: '#0f766e', // teal-700
-    },
-});

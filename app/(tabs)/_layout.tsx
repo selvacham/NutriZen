@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Tabs, Redirect, useRouter, Link } from 'expo-router';
 import { Home, Utensils, Activity, User, MessageCircle, Plus } from 'lucide-react-native';
 import { Colors } from '../../src/constants/Colors';
+import { useColorScheme } from 'nativewind';
 import {
-    useColorScheme,
     View,
     ActivityIndicator,
     TouchableOpacity,
@@ -27,10 +27,17 @@ import Animated, {
     interpolate
 } from 'react-native-reanimated';
 
+import { useNotificationEngine } from '../../src/hooks/useNotificationEngine';
+
 export default function TabLayout() {
-    const colorScheme = useColorScheme();
-    const { user, profile, loading } = useAuthStore();
+    const { colorScheme } = useColorScheme();
     const router = useRouter();
+    const { user, profile, loading } = useAuthStore();
+
+    // Initialize Notification Engine (Only runs when tabs are mounted/authenticated)
+    useNotificationEngine();
+
+    //console.log('[TabLayout] Rendering. User:', user?.email, 'Loading:', loading);
     const { addLog: addFoodLog } = useNutritionStore();
     const { addLog: addActivityLog } = useActivityStore();
     const { addLog: addWaterLog } = useWaterStore();
@@ -64,6 +71,16 @@ export default function TabLayout() {
         };
     });
 
+    //console.log('[TabLayout] Rendering. User:', user?.email, 'Loading:', loading);
+
+    useEffect(() => {
+        if (!loading && !user) {
+            console.log('[TabLayout] No user, redirecting to auth (imperative)');
+            // Use replace to ensure we clean up the stack
+            setTimeout(() => router.replace('/(auth)'), 0);
+        }
+    }, [user, loading]);
+
     if (loading) {
         return (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -72,9 +89,8 @@ export default function TabLayout() {
         );
     }
 
-    if (!user) {
-        return <Redirect href="/(auth)" />;
-    }
+    // Return null while redirecting to avoid flashing content
+    if (!user) return null;
 
     const handleQuickAction = async (action: string) => {
         switch (action) {

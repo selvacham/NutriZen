@@ -1,9 +1,22 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Dimensions, TextInput, ScrollView, Alert } from 'react-native';
+import {
+    View,
+    Text,
+    TouchableOpacity,
+    Dimensions,
+    TextInput,
+    ScrollView,
+    Alert
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, ArrowRight, Check } from 'lucide-react-native';
-import Animated, { FadeInRight, FadeOutLeft, FadeInDown, Layout } from 'react-native-reanimated';
+import Animated, {
+    FadeInRight,
+    FadeOutLeft,
+    FadeInDown,
+    Layout
+} from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ProgressBar } from '../../src/components/ui/ProgressBar';
 import { supabase } from '../../src/lib/supabase';
@@ -61,6 +74,12 @@ const STEPS = [
         type: 'measurements'
     },
     {
+        id: 'water',
+        title: "Daily water goal",
+        subtitle: "Stay hydrated! We'll remind you",
+        type: 'water'
+    },
+    {
         id: 'target',
         title: "Set your target",
         subtitle: "What weight are we aiming for?",
@@ -85,14 +104,16 @@ const dietPreferenceMap: Record<string, string> = {
 export default function OnboardingScreen() {
     const [currentStep, setCurrentStep] = useState(0);
     const [selections, setSelections] = useState<Record<string, any>>({});
-    const [weight, setWeight] = useState('70');
+    const [weight, setWeight] = useState('74');
     const [weightUnit, setWeightUnit] = useState<'kg' | 'lbs'>('kg');
-    const [height, setHeight] = useState('170');
+    const [height, setHeight] = useState('175');
     const [heightUnit, setHeightUnit] = useState<'cm' | 'ft'>('cm');
-    const [targetWeight, setTargetWeight] = useState('65');
+    const [targetWeight, setTargetWeight] = useState('68');
+    const [waterGoal, setWaterGoal] = useState('2250');
     const [loading, setLoading] = useState(false);
+
     const router = useRouter();
-    const { user, setProfile } = useAuthStore();
+    const { user, saveProfile } = useAuthStore();
 
     const handleNext = async () => {
         if (currentStep < STEPS.length - 1) {
@@ -104,84 +125,53 @@ export default function OnboardingScreen() {
 
     const handleComplete = async () => {
         if (!user?.id) {
-            Alert.alert('Error', 'No user session found. Please sign in again.');
+            Alert.alert('Error', 'Please sign in again.');
             router.replace('/(auth)/login');
             return;
         }
 
-        console.log('Starting onboarding completion...', { selections, weight, height, targetWeight });
+        console.log('[Onboarding] Starting for user:', user.id);
         setLoading(true);
+
         try {
-            // Convert measurements to standard units (kg, cm)
-            let finalWeight = parseFloat(weight) || 70;
-            if (weightUnit === 'lbs') finalWeight = finalWeight * 0.453592;
-
-            let finalHeight = parseFloat(height) || 170;
-            if (heightUnit === 'ft') finalHeight = finalHeight * 30.48;
-
-            let finalTarget = parseFloat(targetWeight) || 65;
-            if (weightUnit === 'lbs') finalTarget = finalTarget * 0.453592;
-
-            console.log('Processed metrics:', { finalWeight, finalHeight, finalTarget });
-
-            // Calculate daily calorie goal
-            let calorieGoal = 2000;
-            if (selections.goal === 'Lose Weight') calorieGoal = 1800;
-            if (selections.goal === 'Gain Muscle') calorieGoal = 2400;
-            const activityLevel = activityLevelMap[selections.activity] || 'moderately_active';
-            if (activityLevel === 'very_active') calorieGoal += 200;
-
-            const fullName = user?.user_metadata?.full_name || user?.user_metadata?.name || 'User';
-
+            // 👇 YOUR PERFECT PAYLOAD (already matches DB)
             const profilePayload = {
                 id: user.id,
-                full_name: fullName,
-                gender: selections.gender?.toLowerCase() || 'other',
-                activity_level: activityLevel,
-                diet_preference: dietPreferenceMap[selections.diet] || 'veg',
-                daily_calorie_goal: calorieGoal,
-                current_weight_kg: finalWeight,
-                target_weight_kg: finalTarget,
-                height_cm: finalHeight,
+                full_name: user?.user_metadata?.full_name,
+                gender: selections.gender?.toLowerCase(),
+                height_cm: parseFloat(height),
+                current_weight_kg: parseFloat(weight),
+                target_weight_kg: parseFloat(targetWeight),
+                activity_level: activityLevelMap[selections.activity],
+                diet_preference: dietPreferenceMap[selections.diet],
+                daily_calorie_goal: 1800,
+                updated_at: new Date().toISOString(),
+                water_goal_ml: parseFloat(waterGoal),
+                sleep_goal_hours: 8.0,  // Fixed float
+                bedtime: null,
+                waketime: null
             };
 
-            console.log('Sending payload to Supabase:', profilePayload);
+            console.log('[Onboarding] Payload ready:', JSON.stringify(profilePayload, null, 2));
 
-            // Using insert for new profiles if upsert is failing, or just being more explicit
-            const { data: profileData, error: profileError } = await supabase
-                .from('user_profiles')
-                .upsert(profilePayload, { onConflict: 'id' })
-                .select()
-                .single();
+            // 👇 USE STORE ACTION
+            console.log('[Onboarding] Saving via store...');
+            await saveProfile(profilePayload);
 
-            if (profileError) {
-                console.log('Detailed Supabase Error:', JSON.stringify(profileError, null, 2));
-                throw new Error(`Database error: ${profileError.message || 'Unknown error'}`);
-            }
+            console.log('[Onboarding] ✅ SAVED. Redirecting...');
 
-            if (!profileData) {
-                throw new Error('No data returned from database after saving.');
-            }
-
-            console.log('Profile saved successfully:', profileData);
-            setProfile(profileData);
-
-            // Short delay to ensure state is updated before navigation
+            // Allow state to settle
             setTimeout(() => {
                 router.replace('/(tabs)');
             }, 100);
+
         } catch (error: any) {
-            console.error('Onboarding exception caught:', error);
-            Alert.alert(
-                'Save Failed',
-                error.message || 'An unexpected error occurred while saving your profile.',
-                [{ text: 'Try Again' }]
-            );
+            console.error('[Onboarding] ERROR:', error);
+            Alert.alert('Save Failed', error.message);
         } finally {
             setLoading(false);
         }
     };
-
     const handleBack = () => {
         if (currentStep > 0) {
             setCurrentStep(currentStep - 1);
@@ -191,7 +181,7 @@ export default function OnboardingScreen() {
     const selectOption = (option: string) => {
         setSelections(prev => ({ ...prev, [STEPS[currentStep].id]: option }));
 
-        // Auto-advance after a short delay for better UX
+        // Auto-advance after selection
         setTimeout(() => {
             handleNext();
         }, 500);
@@ -210,14 +200,21 @@ export default function OnboardingScreen() {
                     onPress={() => router.replace('/(tabs)')}
                     className="px-4 py-2 bg-slate-100 dark:bg-slate-900 rounded-full"
                 >
-                    <Text className="text-slate-500 font-bold text-xs uppercase tracking-wider">Skip</Text>
+                    <Text className="text-slate-500 font-bold text-xs uppercase tracking-wider">
+                        Skip
+                    </Text>
                 </TouchableOpacity>
             </View>
 
+            {/* Progress Bar */}
             <View className="mb-10">
-                <ProgressBar progress={(currentStep + 1) / STEPS.length} color="#14b8a6" />
+                <ProgressBar
+                    progress={(currentStep + 1) / STEPS.length}
+                    color="#14b8a6"
+                />
             </View>
 
+            {/* Main Content */}
             <View className="flex-1">
                 <Animated.View
                     key={currentStep}
@@ -235,80 +232,96 @@ export default function OnboardingScreen() {
                     </Animated.View>
 
                     <View className="gap-4">
-                        {(currentStepData as any).options ? (currentStepData as any).options.map((option: any, index: number) => {
-                            const isSelected = selections[currentStepData.id] === option.label;
-                            return (
-                                <Animated.View
-                                    key={option.label}
-                                    entering={FadeInDown.delay(200 + index * 100).duration(500)}
-                                >
-                                    <TouchableOpacity
-                                        onPress={() => selectOption(option.label)}
-                                        disabled={loading}
-                                        activeOpacity={0.7}
-                                        className={`p-6 rounded-3xl border-2 flex-row items-center justify-between shadow-sm ${isSelected
-                                            ? 'border-teal-500 bg-teal-50/50 dark:bg-teal-900/20'
-                                            : 'border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50'
-                                            }`}
+                        {('options' in currentStepData && currentStepData.options) ? (
+                            currentStepData.options.map((option: any, index: number) => {
+                                const isSelected = selections[currentStepData.id] === option.label;
+                                return (
+                                    <Animated.View
+                                        key={option.label}
+                                        entering={FadeInDown.delay(200 + index * 100).duration(500)}
                                     >
-                                        <View className="flex-row items-center">
-                                            <View className="w-12 h-12 bg-white dark:bg-slate-800 rounded-2xl items-center justify-center mr-4 shadow-sm">
-                                                <Text className="text-2xl">{option.icon}</Text>
+                                        <TouchableOpacity
+                                            onPress={() => selectOption(option.label)}
+                                            disabled={loading}
+                                            activeOpacity={0.7}
+                                            className={`p-6 rounded-3xl border-2 flex-row items-center justify-between shadow-sm ${isSelected
+                                                ? 'border-teal-500 bg-teal-50/50 dark:bg-teal-900/20'
+                                                : 'border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50'
+                                                }`}
+                                        >
+                                            <View className="flex-row items-center">
+                                                <View className="w-12 h-12 bg-white dark:bg-slate-800 rounded-2xl items-center justify-center mr-4 shadow-sm">
+                                                    <Text className="text-2xl">{option.icon}</Text>
+                                                </View>
+                                                <Text className={`text-xl font-black ${isSelected
+                                                    ? 'text-teal-700 dark:text-teal-400'
+                                                    : 'text-slate-700 dark:text-slate-300'
+                                                    }`}>
+                                                    {option.label}
+                                                </Text>
                                             </View>
-                                            <Text className={`text-xl font-black ${isSelected ? 'text-teal-700 dark:text-teal-400' : 'text-slate-700 dark:text-slate-300'
-                                                }`}>
-                                                {option.label}
-                                            </Text>
-                                        </View>
-                                        {isSelected && (
-                                            <View className="w-8 h-8 bg-teal-500 rounded-full items-center justify-center">
-                                                <Check size={18} color="white" />
-                                            </View>
-                                        )}
-                                    </TouchableOpacity>
-                                </Animated.View>
-                            );
-                        }) : (currentStepData as any).type === 'measurements' ? (
+                                            {isSelected && (
+                                                <View className="w-8 h-8 bg-teal-500 rounded-full items-center justify-center">
+                                                    <Check size={18} color="white" />
+                                                </View>
+                                            )}
+                                        </TouchableOpacity>
+                                    </Animated.View>
+                                );
+                            })
+                        ) : currentStepData.type === 'measurements' ? (
                             <View>
-                                <Text className="text-slate-400 dark:text-slate-500 font-black text-xs uppercase tracking-widest mb-3 ml-1">Current Weight</Text>
+                                <Text className="text-slate-400 dark:text-slate-500 font-black text-xs uppercase tracking-widest mb-3 ml-1">
+                                    Current Weight
+                                </Text>
                                 <View className="flex-row gap-4 mb-6">
                                     <TextInput
                                         className="flex-1 bg-slate-50 dark:bg-slate-900 px-6 py-4 rounded-2xl text-slate-900 dark:text-white font-bold text-lg border border-slate-100 dark:border-slate-800"
                                         value={weight}
                                         onChangeText={setWeight}
                                         keyboardType="numeric"
-                                        placeholder="70"
+                                        placeholder="74"
                                     />
                                     <View className="flex-row bg-slate-100 dark:bg-slate-900 p-1 rounded-2xl">
                                         {(['kg', 'lbs'] as const).map(u => (
                                             <TouchableOpacity
                                                 key={u}
                                                 onPress={() => setWeightUnit(u)}
-                                                className={`px-4 justify-center rounded-xl ${weightUnit === u ? 'bg-white dark:bg-slate-800 shadow-sm' : ''}`}
+                                                className={`px-4 justify-center rounded-xl ${weightUnit === u ? 'bg-white dark:bg-slate-800 shadow-sm' : ''
+                                                    }`}
                                             >
-                                                <Text className={`font-bold uppercase text-[10px] ${weightUnit === u ? 'text-teal-500' : 'text-slate-400'}`}>{u}</Text>
+                                                <Text className={`font-bold uppercase text-[10px] ${weightUnit === u ? 'text-teal-500' : 'text-slate-400'
+                                                    }`}>
+                                                    {u}
+                                                </Text>
                                             </TouchableOpacity>
                                         ))}
                                     </View>
                                 </View>
 
-                                <Text className="text-slate-400 dark:text-slate-500 font-black text-xs uppercase tracking-widest mb-3 ml-1">Current Height</Text>
+                                <Text className="text-slate-400 dark:text-slate-500 font-black text-xs uppercase tracking-widest mb-3 ml-1">
+                                    Current Height
+                                </Text>
                                 <View className="flex-row gap-4 mb-8">
                                     <TextInput
                                         className="flex-1 bg-slate-50 dark:bg-slate-900 px-6 py-4 rounded-2xl text-slate-900 dark:text-white font-bold text-lg border border-slate-100 dark:border-slate-800"
                                         value={height}
                                         onChangeText={setHeight}
                                         keyboardType="numeric"
-                                        placeholder="170"
+                                        placeholder="175"
                                     />
                                     <View className="flex-row bg-slate-100 dark:bg-slate-900 p-1 rounded-2xl">
                                         {(['cm', 'ft'] as const).map(u => (
                                             <TouchableOpacity
                                                 key={u}
                                                 onPress={() => setHeightUnit(u)}
-                                                className={`px-4 justify-center rounded-xl ${heightUnit === u ? 'bg-white dark:bg-slate-800 shadow-sm' : ''}`}
+                                                className={`px-4 justify-center rounded-xl ${heightUnit === u ? 'bg-white dark:bg-slate-800 shadow-sm' : ''
+                                                    }`}
                                             >
-                                                <Text className={`font-bold uppercase text-[10px] ${heightUnit === u ? 'text-teal-500' : 'text-slate-400'}`}>{u}</Text>
+                                                <Text className={`font-bold uppercase text-[10px] ${heightUnit === u ? 'text-teal-500' : 'text-slate-400'
+                                                    }`}>
+                                                    {u}
+                                                </Text>
                                             </TouchableOpacity>
                                         ))}
                                     </View>
@@ -321,15 +334,39 @@ export default function OnboardingScreen() {
                                     <Text className="text-white font-black text-lg">Next</Text>
                                 </TouchableOpacity>
                             </View>
-                        ) : (currentStepData as any).type === 'target' ? (
+                        ) : currentStepData.type === 'water' ? (
                             <View>
-                                <Text className="text-slate-400 dark:text-slate-500 font-black text-xs uppercase tracking-widest mb-3 ml-1">Target Weight ({weightUnit})</Text>
+                                <Text className="text-slate-400 dark:text-slate-500 font-black text-xs uppercase tracking-widest mb-3 ml-1">
+                                    Daily Water Goal
+                                </Text>
+                                <TextInput
+                                    className="bg-slate-50 dark:bg-slate-900 px-6 py-5 rounded-3xl text-slate-900 dark:text-white font-bold text-lg border border-slate-100 dark:border-slate-800 mb-4"
+                                    value={waterGoal}
+                                    onChangeText={setWaterGoal}
+                                    keyboardType="numeric"
+                                    placeholder="2250"
+                                />
+                                <Text className="text-slate-400 dark:text-slate-500 text-sm mb-6">
+                                    {parseFloat(waterGoal || '0') / 1000}L • Recommended: 2-3L daily
+                                </Text>
+                                <TouchableOpacity
+                                    onPress={handleNext}
+                                    className="bg-teal-500 py-5 rounded-3xl items-center shadow-lg shadow-teal-500/30"
+                                >
+                                    <Text className="text-white font-black text-lg">Next</Text>
+                                </TouchableOpacity>
+                            </View>
+                        ) : currentStepData.type === 'target' ? (
+                            <View>
+                                <Text className="text-slate-400 dark:text-slate-500 font-black text-xs uppercase tracking-widest mb-3 ml-1">
+                                    Target Weight ({weightUnit})
+                                </Text>
                                 <TextInput
                                     className="bg-slate-50 dark:bg-slate-900 px-6 py-5 rounded-3xl text-slate-900 dark:text-white font-bold text-lg border border-slate-100 dark:border-slate-800 mb-8"
                                     value={targetWeight}
                                     onChangeText={setTargetWeight}
                                     keyboardType="numeric"
-                                    placeholder="65"
+                                    placeholder="68"
                                 />
 
                                 <TouchableOpacity
@@ -337,49 +374,14 @@ export default function OnboardingScreen() {
                                     disabled={loading}
                                     className="bg-teal-500 py-5 rounded-3xl items-center shadow-lg shadow-teal-500/30"
                                 >
-                                    <Text className="text-white font-black text-lg">{loading ? 'Saving...' : 'Finish'}</Text>
+                                    <Text className="text-white font-black text-lg">
+                                        {loading ? 'Saving...' : 'Finish'}
+                                    </Text>
                                 </TouchableOpacity>
                             </View>
                         ) : null}
                     </View>
                 </Animated.View>
-            </View>
-
-            {/* Bottom Actions */}
-            <View className="py-8 items-center">
-                {/* Back Button - Improved visibility in dark mode */}
-                {currentStep > 0 && (
-                    <TouchableOpacity
-                        onPress={handleBack}
-                        className="w-14 h-14 bg-slate-100 dark:bg-slate-800 rounded-full items-center justify-center mb-4 shadow-sm active:scale-95"
-                    >
-                        <ChevronLeft size={24} className="text-slate-600 dark:text-slate-200" />
-                    </TouchableOpacity>
-                )}
-
-                {loading ? (
-                    <View className="bg-teal-500 px-8 py-5 rounded-3xl shadow-lg shadow-teal-500/30">
-                        <Text className="text-white font-black text-lg">Setting up...</Text>
-                    </View>
-                ) : (
-                    currentStep === STEPS.length - 1 && selections[currentStepData.id] ? (
-                        <TouchableOpacity
-                            onPress={handleComplete}
-                            activeOpacity={0.9}
-                            className="w-full overflow-hidden rounded-3xl"
-                        >
-                            <LinearGradient
-                                colors={['#14b8a6', '#0d9488']}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 1, y: 0 }}
-                                className="px-8 py-5 items-center flex-row justify-center"
-                            >
-                                <Text className="text-white font-black text-xl mr-3">Create Profile</Text>
-                                <ArrowRight size={24} color="white" />
-                            </LinearGradient>
-                        </TouchableOpacity>
-                    ) : null
-                )}
             </View>
         </SafeAreaView>
     );

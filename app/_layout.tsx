@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Stack } from 'expo-router';
 import { useEffect, useState, useCallback } from 'react';
+import { Appearance } from 'react-native';
 import { useColorScheme } from 'nativewind';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import * as SplashScreen from 'expo-splash-screen';
@@ -22,16 +23,27 @@ export {
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync().catch(() => { });
 
+
+
 export default function RootLayout() {
     const { colorScheme, setColorScheme } = useColorScheme();
     const { setUser, setProfile, setLoading } = useAuthStore();
-    const { theme } = useSettingsStore();
+    const { theme, setResolvedTheme } = useSettingsStore();
     const [appReady, setAppReady] = useState(false);
 
-    // Sync theme from store to NativeWind
+    // 1. Sync user preference to NativeWind
     useEffect(() => {
+        //console.log('[RootLayout] Setting theme preference:', theme);
         setColorScheme(theme);
     }, [theme]);
+
+    // 2. Update store with the ACTUAL active theme (resolved by NativeWind)
+    useEffect(() => {
+        if (colorScheme) {
+            //console.log('[RootLayout] Resolved theme changed to:', colorScheme);
+            setResolvedTheme(colorScheme as 'light' | 'dark');
+        }
+    }, [colorScheme]);
 
     const { loading } = useAuthStore();
     useEffect(() => {
@@ -50,51 +62,53 @@ export default function RootLayout() {
                 setLoading(false);
                 setAppReady(true);
             }
-        }, 8000); // Increased timeout for slower environments
+        }, 8000);
 
-        const syncProfile = async (userId: string) => {
+        const init = async () => {
             try {
-                const { data: profile } = await supabase
-                    .from('user_profiles')
-                    .select('*')
-                    .eq('id', userId)
-                    .single();
-                if (isMounted && profile) setProfile(profile);
-            } catch (err) {
-                console.error('Profile sync error:', err);
-            }
-        };
-
-        const initAuth = async () => {
-            try {
-                const { data: { session } } = await supabase.auth.getSession();
-                if (isMounted && session?.user) {
-                    setUser(session.user);
-                    await syncProfile(session.user.id);
-                }
+                // Initialize auth store (handles session & profile)
+                await useAuthStore.getState().initializeAuth();
             } catch (error) {
-                console.error('Auth init error:', error);
+                console.error('[RootLayout] Init error:', error);
             } finally {
                 if (isMounted) {
                     setAppReady(true);
-                    setLoading(false);
                     clearTimeout(loadingTimeout);
                 }
             }
         };
 
-        initAuth();
+        init();
 
+        // Global Auth Listener
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-            if (!isMounted) return;
+            console.log(`[RootLayout] Auth State Changed: ${event}. User: ${session?.user?.id}`);
+
             if (event === 'SIGNED_IN' || event === 'USER_UPDATED' || event === 'TOKEN_REFRESHED') {
+                const { isSigningOut } = useAuthStore.getState();
+
+                if (isSigningOut) {
+                    // Check if it's potentially the SAME user triggering a ghost event
+                    const { user } = useAuthStore.getState();
+                    if (!user || user.id === session?.user?.id) {
+                        console.warn(`[RootLayout] Ignoring ${event} because isSigningOut is true (Ghost Login prevention)`);
+                        return;
+                    }
+                    console.log('[RootLayout] New user detected during signout cleanup. Proceeding with login.');
+                    useAuthStore.setState({ isSigningOut: false }); // Force clear flag
+                }
+
+                // Store handles state updates internally, but we can force re-fetch if needed
                 if (session?.user) {
-                    setUser(session.user);
-                    await syncProfile(session.user.id);
+                    console.log('[RootLayout] Setting user in store:', session.user.id);
+                    useAuthStore.getState().setUser(session.user);
+                    if (session.user.id) {
+                        await useAuthStore.getState().fetchProfile(session.user.id, session.access_token);
+                    }
                 }
             } else if (event === 'SIGNED_OUT') {
-                setUser(null);
-                setProfile(null);
+                console.log('[RootLayout] Handling SIGNED_OUT event');
+                useAuthStore.getState().reset();
             }
         });
 
@@ -122,15 +136,10 @@ export default function RootLayout() {
         <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayout}>
             <SafeAreaProvider>
                 <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
-                    <RootContent />
+                    <Stack screenOptions={{ headerShown: false }} />
                     <StatusBar style={isDark ? 'light' : 'dark'} />
                 </ThemeProvider>
             </SafeAreaProvider>
         </GestureHandlerRootView>
     );
-}
-
-function RootContent() {
-    useNotificationEngine();
-    return <Stack screenOptions={{ headerShown: false }} />;
 }

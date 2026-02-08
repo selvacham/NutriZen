@@ -21,7 +21,7 @@ export const analyzeMealImage = async (base64Image: string): Promise<VisionResul
     }
 
     try {
-        const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
         const prompt = `
             Analyze this food image and provide nutritional information.
@@ -73,7 +73,7 @@ export async function generateGrocerySuggestions(recentLogs: any[]) {
     }
 
     try {
-        const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
         const prompt = `Based on the following recent food logs: ${JSON.stringify(recentLogs)}, 
         suggest a list of 5-8 healthy grocery items that the user might need to restock on to maintain their nutrition goals.
         Focus on healthy, whole foods. Return ONLY a JSON array of objects with "name" and "category" fields.
@@ -102,7 +102,7 @@ export async function generateMealSuggestion(remainingMacros: { calories: number
     }
 
     try {
-        const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
         const prompt = `Based on the following remaining daily macros: ${JSON.stringify(remainingMacros)} and the user's goal: "${goal}",
         suggest ONE delicious and healthy meal recipe. 
         Return ONLY a JSON object with the following fields:

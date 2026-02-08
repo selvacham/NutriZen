@@ -15,6 +15,10 @@ export async function signInWithGoogle() {
             options: {
                 redirectTo: redirectUrl,
                 skipBrowserRedirect: false,
+                queryParams: {
+                    access_type: 'offline',
+                    prompt: 'select_account',
+                },
             },
         });
 
